@@ -1,0 +1,26 @@
+- hosts: localhost
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Install required packages (if needed)
+      package:
+        name:
+          - curl
+          - redis-tools
+        state: present
+
+    - name: Test Redis connection from localhost
+      command: redis-cli -h {{ redis_hostname }} -p {{ redis_port }} -a {{ redis_password }} PING
+      register: redis_test_output
+
+    - name: Show Redis connection test result
+      debug:
+        msg: "{{ redis_test_output.stdout }}"
+
+    - name: Verify App Service configuration for Redis connection string
+      command: az webapp config appsettings list --name {{ app_service_name }} --resource-group {{ resource_group_name }} --query "[?name=='REDIS_CONNECTION_STRING']"
+      register: app_connection_string
+
+    - name: Display Redis connection string for debugging
+      debug:
+        msg: "{{ app_connection_string.stdout }}"

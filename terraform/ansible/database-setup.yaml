@@ -1,0 +1,27 @@
+- hosts: localhost
+  vars_files:
+    - vars.yml
+    - database-vars.yml
+  tasks:
+    - name: Install required packages (if needed)
+      package:
+        name:
+          - curl
+          - mssql-tools
+        state: present
+
+    - name: Verify SQL Server connection
+      command: sqlcmd -S {{ sql_server_name }} -U {{ sql_admin_username }} -P {{ sql_admin_password }} -Q "SELECT 1"
+      register: sql_connection_test
+
+    - name: Show SQL Server connection test result
+      debug:
+        msg: "{{ sql_connection_test.stdout }}"
+
+    - name: Verify SQL Database configuration
+      command: sqlcmd -S {{ sql_server_name }} -U {{ sql_admin_username }} -P {{ sql_admin_password }} -Q "USE {{ sql_database_name }}; SELECT name FROM sys.tables"
+      register: db_check
+
+    - name: Display SQL Database tables
+      debug:
+        msg: "{{ db_check.stdout }}"

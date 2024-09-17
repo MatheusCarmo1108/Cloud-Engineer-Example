@@ -1,0 +1,42 @@
+- hosts: localhost
+  become: yes
+  tasks:
+    - name: Install required packages (curl, jq, openssh-client)
+      package:
+        name:
+          - curl
+          - jq
+          - openssh-client
+        state: present
+
+    - name: Retrieve Azure App Service Hostname
+      command: az webapp show --name "my-app-service" --resource-group "my-resource-group" --query defaultHostName -o tsv
+      register: app_service_hostname
+
+    - name: Output App Service Hostname
+      debug:
+        msg: "App Service is reachable at: {{ app_service_hostname.stdout }}"
+
+    - name: Set up SSH tunneling to the App Service
+      shell: |
+        ssh -N -L 8080:{{ app_service_hostname.stdout }}:80 user@bastion-host -i /path/to/your/private/key &
+      async: 10
+      poll: 0
+      register: ssh_tunnel
+
+    - name: Wait for SSH tunnel to initialize
+      pause:
+        seconds: 5
+
+    - name: Test connection to the App Service through the SSH tunnel
+      command: curl -I http://localhost:8080
+      register: curl_output
+
+    - name: Show curl result
+      debug:
+        msg: "{{ curl_output.stdout }}"
+
+    - name: Kill the SSH tunnel after use
+      shell: |
+        ps aux | grep "[s]sh -N -L 8080" | awk '{print $2}' | xargs kill -9
+      ignore_errors: yes
